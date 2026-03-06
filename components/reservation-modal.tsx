@@ -2,7 +2,6 @@
 
 import { Reservation } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAppContext } from '@/lib/context';
 import { downloadInvoicePDF } from '@/lib/pdf-generator';
 import { useState } from 'react';
@@ -132,7 +131,7 @@ export function ReservationModal({
                   Notes
                 </h3>
                 <p className="text-sm text-slate-600 leading-relaxed italic">
-                  "{reservation.notes}"
+                  &quot;{reservation.notes}&quot;
                 </p>
               </section>
             )}

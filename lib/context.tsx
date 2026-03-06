@@ -9,13 +9,25 @@ import {
   CabinType,
   Passenger,
 } from './types';
+import { createClient } from '@/lib/supabase/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+function mapSupabaseUser(sbUser: SupabaseUser | null): User | null {
+  if (!sbUser) return null;
+  return {
+    id: sbUser.id,
+    email: sbUser.email ?? '',
+    name: sbUser.user_metadata?.name ?? sbUser.email?.split('@')[0] ?? 'User',
+  };
+}
 
 interface AppContextType {
   currentUser: User | null;
   events: CruiseEvent[];
   reservations: Reservation[];
   invoices: Invoice[];
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, name?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   addReservation: (reservation: Reservation) => void;
   updateReservation: (reservation: Reservation) => void;
@@ -58,7 +70,6 @@ function generateDemoData() {
     },
   ];
 
-  const cabinTypes: CabinType[] = ['BUNK', 'QUEEN_SUITE'];
   const firstNames = ['John', 'Sarah', 'Michael', 'Emma', 'David', 'Lisa', 'James', 'Maria'];
   const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis'];
   const allergies = [
@@ -121,58 +132,58 @@ function generateDemoData() {
   return { events, reservations };
 }
 
+const DEFAULT_EVENTS: CruiseEvent[] = [
+  { id: '1', name: 'Caribbean Dream', date: '2024-06-15', destination: 'Caribbean Islands', capacity: 26, currentBookings: 0 },
+  { id: '2', name: 'Mediterranean Escape', date: '2024-07-20', destination: 'Mediterranean Sea', capacity: 26, currentBookings: 0 },
+  { id: '3', name: 'Alaska Adventure', date: '2024-08-10', destination: 'Alaska', capacity: 26, currentBookings: 0 },
+];
+
+function loadCruiseDataFromStorage(): {
+  events: CruiseEvent[];
+  reservations: Reservation[];
+  invoices: Invoice[];
+} {
+  if (typeof window === 'undefined') {
+    return { events: DEFAULT_EVENTS, reservations: [], invoices: [] };
+  }
+  const savedData = localStorage.getItem('cruiseData');
+  if (!savedData) {
+    return { events: DEFAULT_EVENTS, reservations: [], invoices: [] };
+  }
+  try {
+    const parsed = JSON.parse(savedData);
+    return {
+      events: parsed.events ?? DEFAULT_EVENTS,
+      reservations: parsed.reservations ?? [],
+      invoices: parsed.invoices ?? [],
+    };
+  } catch {
+    return { events: DEFAULT_EVENTS, reservations: [], invoices: [] };
+  }
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [events, setEvents] = useState<CruiseEvent[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [events, setEvents] = useState<CruiseEvent[]>(() => loadCruiseDataFromStorage().events);
+  const [reservations, setReservations] = useState<Reservation[]>(() => loadCruiseDataFromStorage().reservations);
+  const [invoices, setInvoices] = useState<Invoice[]>(() => loadCruiseDataFromStorage().invoices);
 
-  // Load data from localStorage on mount
+  // Supabase auth: get initial session and subscribe to changes
   useEffect(() => {
-    const savedData = localStorage.getItem('cruiseData');
-    if (savedData) {
-      try {
-        const { events: savedEvents, reservations: savedReservations, invoices: savedInvoices } = JSON.parse(savedData);
-        setEvents(savedEvents || []);
-        setReservations(savedReservations || []);
-        setInvoices(savedInvoices || []);
-      } catch (error) {
-        console.error('Failed to load saved data:', error);
-      }
-    } else {
-      // Initialize with empty data
-      setEvents([
-        {
-          id: '1',
-          name: 'Caribbean Dream',
-          date: '2024-06-15',
-          destination: 'Caribbean Islands',
-          capacity: 26,
-          currentBookings: 0,
-        },
-        {
-          id: '2',
-          name: 'Mediterranean Escape',
-          date: '2024-07-20',
-          destination: 'Mediterranean Sea',
-          capacity: 26,
-          currentBookings: 0,
-        },
-        {
-          id: '3',
-          name: 'Alaska Adventure',
-          date: '2024-08-10',
-          destination: 'Alaska',
-          capacity: 26,
-          currentBookings: 0,
-        },
-      ]);
-    }
+    const supabase = createClient();
 
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    }
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUser(mapSupabaseUser(session?.user ?? null));
+    };
+
+    getInitialSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(mapSupabaseUser(session?.user ?? null));
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // Save data to localStorage whenever it changes
@@ -183,24 +194,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }, [events, reservations, invoices]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication
-    if (email === 'admin@gmail.com' && password === 'admin123') {
-      const user: User = {
-        id: '1',
-        email,
-        name: 'Admin',
-      };
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return true;
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      return { success: false, error: error.message };
     }
-    return false;
+    setCurrentUser(mapSupabaseUser(data.user));
+    return { success: true };
   };
 
-  const logout = () => {
+  const signUp = async (email: string, password: string, name?: string): Promise<{ success: boolean; error?: string }> => {
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name } },
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    if (data.user) {
+      setCurrentUser(mapSupabaseUser(data.user));
+    }
+    return { success: true };
+  };
+
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
   };
 
   const addReservation = (reservation: Reservation) => {
@@ -277,6 +300,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     reservations,
     invoices,
     login,
+    signUp,
     logout,
     addReservation,
     updateReservation,
