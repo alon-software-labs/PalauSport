@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '@/lib/context';
 import { Reservation } from '@/lib/types';
 import { CabinGrid } from '@/components/cabin-grid';
@@ -16,6 +16,13 @@ type SortOption = 'name' | 'date' | 'price' | 'guests';
 export default function ReservationsPage() {
   const { events, reservations, getInvoicesByReservation } = useAppContext();
   const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || '');
+
+  useEffect(() => {
+    if (events.length > 0 && !selectedEventId) {
+      setSelectedEventId(events[0].id);
+    }
+  }, [events, selectedEventId]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);

@@ -9,25 +9,29 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppContext } from '@/lib/context';
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
-  const { login } = useAppContext();
+  const { signUp } = useAppContext();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+    setSuccess(false);
 
     try {
-      const result = await login(email, password);
+      const result = await signUp(email, password, name || undefined);
       if (result.success) {
+        setSuccess(true);
         router.push('/dashboard');
       } else {
-        setError(result.error ?? 'Invalid email or password. Check your credentials and try again.');
+        setError(result.error ?? 'Unable to create account. Please try again.');
       }
     } catch {
       setError('An error occurred. Please try again.');
@@ -41,7 +45,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Cruise Reservation CRM</CardTitle>
-          <CardDescription>Admin Login</CardDescription>
+          <CardDescription>Create an account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,7 +54,23 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            
+            {success && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+                Account created! Redirecting...
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Name (optional)</Label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -59,6 +79,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                required
               />
             </div>
 
@@ -70,7 +91,10 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
+                required
+                minLength={6}
               />
+              <p className="text-xs text-muted-foreground">At least 6 characters</p>
             </div>
 
             <Button
@@ -78,13 +102,13 @@ export default function LoginPage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? 'Creating account...' : 'Sign up'}
             </Button>
 
             <p className="text-sm text-center text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-primary hover:underline">
-                Sign up
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary hover:underline">
+                Log in
               </Link>
             </p>
           </form>

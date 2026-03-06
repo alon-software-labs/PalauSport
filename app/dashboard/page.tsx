@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useAppContext } from '@/lib/context';
 import { StatsCard } from '@/components/stats-card';
 import { Button } from '@/components/ui/button';
@@ -8,21 +7,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  const { events, reservations, populateDemoData } = useAppContext();
-  const [isPopulating, setIsPopulating] = useState(false);
-
-  const handlePopulateDemo = async () => {
-    setIsPopulating(true);
-    try {
-      populateDemoData();
-    } finally {
-      setIsPopulating(false);
-    }
-  };
+  const { events, reservations, isLoading, error } = useAppContext();
 
   const totalPassengers = reservations.reduce((sum, r) => sum + r.totalGuests, 0);
   const totalCapacity = 22;
   const capacityPercentage = totalPassengers > 0 ? Math.round((totalPassengers / totalCapacity) * 100) : 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+        <p className="text-red-600">Error loading data: {error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -58,26 +64,6 @@ export default function DashboardPage() {
           icon="📊"
         />
       </div>
-
-      {/* Demo Data Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Demo Data</CardTitle>
-          <CardDescription>
-            Generate sample reservations to test the system (1-22 guests)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={handlePopulateDemo}
-            disabled={isPopulating}
-            size="lg"
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isPopulating ? 'Populating...' : 'Populate Demo Data'}
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -118,7 +104,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {reservations.length === 0 ? (
-            <p className="text-gray-500">No reservations yet. Generate demo data to see sample bookings.</p>
+            <p className="text-gray-500">No reservations yet.</p>
           ) : (
             <div className="space-y-2">
               {reservations.slice(-5).reverse().map((res) => (
