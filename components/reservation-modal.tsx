@@ -58,21 +58,20 @@ export function ReservationModal({
 
   return (
     <Dialog open={!!reservation} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden bg-white/95 backdrop-blur-md border-slate-200">
+      <DialogContent className="max-w-2xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-2xl font-bold text-slate-900">
+          <DialogTitle className="text-xl font-semibold tracking-tight">
             {reservation?.customerName}
           </DialogTitle>
-          <DialogDescription className="text-slate-500">
-            Reservation ID: {reservation?.id}
+          <DialogDescription className="text-muted-foreground font-mono text-xs">
+            {reservation?.id}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[70vh] p-6 pt-4">
           <div className="space-y-8">
-            {/* Customer Info */}
             <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h3 className="text-sm font-semibold text-blue-600 mb-4 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-primary mb-4 uppercase tracking-wider">
                 Customer Information
               </h3>
               <div className="grid grid-cols-2 gap-6 text-sm">
@@ -83,9 +82,8 @@ export function ReservationModal({
               </div>
             </section>
 
-            {/* Reservation Details */}
             <section className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-              <h3 className="text-sm font-semibold text-blue-600 mb-4 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-primary mb-4 uppercase tracking-wider">
                 Reservation Details
               </h3>
               <div className="grid grid-cols-2 gap-6 text-sm">
@@ -102,20 +100,19 @@ export function ReservationModal({
               </div>
             </section>
 
-            {/* Passengers */}
             <section className="animate-in fade-in slide-in-from-bottom-2 duration-700">
-              <h3 className="text-sm font-semibold text-blue-600 mb-4 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-primary mb-4 uppercase tracking-wider">
                 Passengers
               </h3>
               <div className="space-y-3">
                 {reservation?.passengers.map((passenger: any) => (
-                  <div key={passenger.id} className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center justify-between">
+                  <div key={passenger.id} className="bg-muted/50 border border-border p-3 rounded-lg flex items-center justify-between">
                     <div>
-                      <div className="font-semibold text-slate-900">{passenger.name}</div>
-                      <div className="text-slate-500 text-xs">Age: {passenger.age}</div>
+                      <div className="font-medium">{passenger.name}</div>
+                      <div className="text-muted-foreground text-xs">Age: {passenger.age}</div>
                     </div>
                     {passenger.allergies && passenger.allergies !== 'None' && (
-                      <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded text-[10px] font-medium border border-orange-100 uppercase tracking-tighter">
+                      <div className="bg-destructive/10 text-destructive px-2 py-1 rounded text-[10px] font-medium border border-destructive/20 uppercase tracking-tighter">
                         Allergy: {passenger.allergies}
                       </div>
                     )}
@@ -124,13 +121,12 @@ export function ReservationModal({
               </div>
             </section>
 
-            {/* Notes */}
             {reservation?.notes && (
               <section className="animate-in fade-in slide-in-from-bottom-2 duration-1000">
-                <h3 className="text-sm font-semibold text-blue-600 mb-2 uppercase tracking-wider">
+                <h3 className="text-xs font-semibold text-primary mb-2 uppercase tracking-wider">
                   Notes
                 </h3>
-                <p className="text-sm text-slate-600 leading-relaxed italic">
+                <p className="text-sm text-muted-foreground leading-relaxed italic">
                   &quot;{reservation.notes}&quot;
                 </p>
               </section>
@@ -138,12 +134,10 @@ export function ReservationModal({
           </div>
         </ScrollArea>
 
-        {/* Actions */}
-        <div className="p-6 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
+        <div className="p-6 bg-muted/30 border-t flex items-center justify-end gap-3">
           <Button
             onClick={handleGenerateInvoice}
             disabled={isGenerating || reservation?.invoiceGenerated}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-100 transition-all active:scale-95"
           >
             {isGenerating
               ? 'Generating...'
@@ -152,12 +146,7 @@ export function ReservationModal({
                 : 'Generate Invoice'}
           </Button>
           {reservation?.invoiceGenerated && (
-            <Button
-              onClick={handleDownloadInvoice}
-              disabled={isDownloading}
-              variant="outline"
-              className="border-slate-300 hover:bg-white text-slate-700 font-medium transition-all active:scale-95"
-            >
+            <Button onClick={handleDownloadInvoice} disabled={isDownloading} variant="outline">
               {isDownloading ? 'Downloading...' : 'Download PDF'}
             </Button>
           )}

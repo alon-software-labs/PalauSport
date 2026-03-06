@@ -110,6 +110,7 @@ function mapInvoice(row: DbInvoice): Invoice {
 
 interface AppContextType {
   currentUser: User | null;
+  authReady: boolean;
   events: CruiseEvent[];
   reservations: Reservation[];
   invoices: Invoice[];
@@ -132,6 +133,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [events, setEvents] = useState<CruiseEvent[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -175,21 +177,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInvoices((invoicesRes.data as DbInvoice[]).map(mapInvoice));
   }, []);
 
-  // Supabase auth: get initial session and subscribe to changes
+  // Supabase auth: subscribe to changes (fires with INITIAL_SESSION on subscribe, restoring session from cookies)
   useEffect(() => {
     const supabase = createClient();
-
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setCurrentUser(mapSupabaseUser(session?.user ?? null));
-    };
-
-    getInitialSession();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(mapSupabaseUser(session?.user ?? null));
+      setAuthReady(true);
     });
-
     return () => subscription.unsubscribe();
   }, []);
 
@@ -360,6 +354,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppContextType = {
     currentUser,
+    authReady,
     events,
     reservations,
     invoices,

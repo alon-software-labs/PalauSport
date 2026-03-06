@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Outfit, IBM_Plex_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AppProvider } from '@/lib/context'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
+const ibmPlexMono = IBM_Plex_Mono({ weight: ['400', '500'], subsets: ['latin'], variable: '--font-ibm-mono' });
 
 export const metadata: Metadata = {
-  title: 'Cruise Reservation CRM',
+  title: 'PalauSport CRM',
   description: 'Manage cruise reservations, guests, and invoices',
   generator: 'v0.app',
   icons: {
@@ -36,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${outfit.variable} ${ibmPlexMono.variable}`}>
       <body className="font-sans antialiased">
         <AppProvider>
           {children}

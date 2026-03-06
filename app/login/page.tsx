@@ -37,20 +37,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Cruise Reservation CRM</CardTitle>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[linear-gradient(135deg,oklch(0.32_0.1_265/0.06)_0%,transparent_50%),linear-gradient(225deg,oklch(0.65_0.12_80/0.05)_0%,transparent_50%)]" />
+      <Card className="w-full max-w-md relative z-10 shadow-xl border-border/80 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <CardHeader className="text-center space-y-1">
+          <CardTitle className="text-xl font-semibold tracking-tight">PalauSport CRM</CardTitle>
           <CardDescription>Admin Login</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
-            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -61,7 +61,6 @@ export default function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -72,18 +71,12 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
-
             <p className="text-sm text-center text-muted-foreground">
               Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-primary hover:underline">
+              <Link href="/signup" className="text-primary hover:underline font-medium">
                 Sign up
               </Link>
             </p>

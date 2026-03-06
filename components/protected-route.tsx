@@ -6,15 +6,15 @@ import { useAppContext } from '@/lib/context';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { currentUser } = useAppContext();
+  const { currentUser, authReady } = useAppContext();
 
   useEffect(() => {
-    if (!currentUser) {
+    if (authReady && !currentUser) {
       router.push('/login');
     }
-  }, [currentUser, router]);
+  }, [authReady, currentUser, router]);
 
-  if (!currentUser) {
+  if (!authReady || !currentUser) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p>Loading...</p>

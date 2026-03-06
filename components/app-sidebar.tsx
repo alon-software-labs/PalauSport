@@ -64,11 +64,11 @@ export function AppSidebar() {
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-2 font-bold text-xl text-blue-600">
-                    <div className="bg-blue-600 text-white p-1 rounded">
+                <div className="flex items-center gap-2.5 font-bold text-lg text-sidebar-foreground">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
                         <LayoutDashboard size={20} />
                     </div>
-                    <span className="group-data-[collapsible=icon]:hidden">Cruise CRM</span>
+                    <span className="group-data-[collapsible=icon]:hidden tracking-tight">PalauSport</span>
                 </div>
             </SidebarHeader>
             <SidebarContent>
@@ -96,7 +96,7 @@ export function AppSidebar() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+                                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                                         <User2 className="size-4" />
                                     </div>
                                     <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">

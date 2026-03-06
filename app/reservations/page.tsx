@@ -9,6 +9,24 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Download, Search } from 'lucide-react';
 import { downloadInvoicePDF } from '@/lib/pdf-generator';
 
 type SortOption = 'name' | 'date' | 'price' | 'guests';
@@ -80,16 +98,15 @@ export default function ReservationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
-        <h1 className="text-3xl font-bold mb-2">Reservations</h1>
-        <p className="text-gray-600">Manage all cruise reservations</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Reservations</h1>
+        <p className="text-muted-foreground mt-0.5">Manage all cruise reservations</p>
       </div>
 
-      {/* Event Selector */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Event</CardTitle>
+          <CardTitle className="text-base">Select Event</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 flex-wrap">
@@ -106,7 +123,6 @@ export default function ReservationsPage() {
         </CardContent>
       </Card>
 
-      {/* Cabin Grid */}
       {selectedEventId && (
         <CabinGrid
           eventId={selectedEventId}
@@ -114,105 +130,127 @@ export default function ReservationsPage() {
         />
       )}
 
-      {/* Search and Filter */}
       <Card>
         <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+          <CardTitle className="text-base">Search & Filter</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="search">Search by name, email, or phone</Label>
-              <Input
-                id="search"
-                placeholder="Search reservations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Search reservations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="sort">Sort by</Label>
-              <select
-                id="sort"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="date">Date (Newest)</option>
-                <option value="name">Name (A-Z)</option>
-                <option value="price">Price (Highest)</option>
-                <option value="guests">Guests (Most)</option>
-              </select>
+            <div className="space-y-2">
+              <Label>Sort by</Label>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Date (Newest)</SelectItem>
+                  <SelectItem value="name">Name (A-Z)</SelectItem>
+                  <SelectItem value="price">Price (Highest)</SelectItem>
+                  <SelectItem value="guests">Guests (Most)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Reservations List */}
       <Card>
         <CardHeader>
-          <CardTitle>Reservations</CardTitle>
+          <CardTitle className="text-base">Reservations</CardTitle>
           <CardDescription>
             {eventReservations.length} reservation{eventReservations.length !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent>
           {eventReservations.length === 0 ? (
-            <p className="text-gray-500">No reservations for this event</p>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">—</EmptyMedia>
+                <EmptyTitle>No reservations for this event</EmptyTitle>
+                <EmptyDescription>Try selecting another event or adjust your search.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {eventReservations.map((reservation) => (
-                <div
-                  key={reservation.id}
-                  onClick={() => setSelectedReservation(reservation)}
-                  className="p-4 border border-gray-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-all active:scale-[0.98] hover:scale-[1.01] hover:shadow-md hover:border-blue-200 flex items-center justify-between group"
-                >
-                  <div>
-                    <p className="font-semibold">{reservation.customerName}</p>
-                    <p className="text-sm text-gray-600">{reservation.customerEmail}</p>
-                    <p className="text-sm text-gray-600">
-                      {reservation.totalGuests} guest{reservation.totalGuests !== 1 ? 's' : ''} • {reservation.cabinType}
-                    </p>
-                  </div>
-                  <div className="text-right flex items-center gap-2">
-                    <div>
-                      <p className="font-semibold">${reservation.totalPrice.toFixed(2)}</p>
-                      <span className={`text-xs px-2 py-1 rounded inline-block ${reservation.invoiceGenerated
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-yellow-100 text-yellow-700'
-                        }`}>
-                        {reservation.invoiceGenerated ? '✓ Invoice Generated' : 'Pending'}
-                      </span>
-                    </div>
-                    {reservation.invoiceGenerated && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => handleDownloadInvoice(e, reservation)}
-                        disabled={isDownloading}
-                      >
-                        Download
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Guests</TableHead>
+                    <TableHead>Cabin</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {eventReservations.map((reservation) => (
+                    <TableRow
+                      key={reservation.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setSelectedReservation(reservation)}
+                    >
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{reservation.customerName}</p>
+                          <p className="text-xs text-muted-foreground">{reservation.customerEmail}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono tabular-nums">
+                        {reservation.totalGuests}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{reservation.cabinType}</TableCell>
+                      <TableCell className="text-right font-mono font-medium tabular-nums">
+                        ${reservation.totalPrice.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={reservation.invoiceGenerated ? 'default' : 'secondary'}>
+                          {reservation.invoiceGenerated ? 'Invoice' : 'Pending'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {reservation.invoiceGenerated && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => handleDownloadInvoice(e, reservation)}
+                            disabled={isDownloading}
+                          >
+                            <Download className="size-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Reservation Modal */}
       <ReservationModal
         reservation={selectedReservation}
         onClose={() => setSelectedReservation(null)}
         onGenerateInvoice={handleInvoiceGenerated}
       />
 
-      {/* Invoice Generated Toast */}
       {invoiceGenerated && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
-          Invoice generated successfully!
+        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-300">
+          Invoice generated successfully
         </div>
       )}
     </div>
