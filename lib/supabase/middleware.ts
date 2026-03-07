@@ -4,8 +4,6 @@ import { supabaseKey, supabaseUrl } from './config';
 
 const PROTECTED_PREFIXES = ['/dashboard', '/reservations', '/invoices'];
 const AUTH_PAGES = ['/login', '/signup'];
-const RESERVATION_APP_URL =
-  process.env.NEXT_PUBLIC_RESERVATION_APP_URL ?? 'https://alon-software-labs.github.io/palausport-reservation-ui/';
 
 function isProtectedRoute(pathname: string) {
   return PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
@@ -37,30 +35,42 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  // Get session first, then verify JWT with getClaims (pass token explicitly for middleware reliability)
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+  let userRole: string | undefined;
+
+  if (accessToken) {
+    const { data: claimsData } = await supabase.auth.getClaims(accessToken);
+    const payload = claimsData?.claims as { user_role?: string } | undefined;
+    userRole = payload?.user_role;
+  }
+  const hasSession = !!accessToken;
 
   // Redirect unauthenticated users from protected routes
-  if (isProtectedRoute(request.nextUrl.pathname) && !user) {
+  if (isProtectedRoute(request.nextUrl.pathname) && !hasSession) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Restrict CRM to employees only: clients and users without role go to reservation app
-  const userRole = user?.user_role as string | undefined;
-  if (isProtectedRoute(request.nextUrl.pathname) && user && userRole !== 'employee') {
-    return NextResponse.redirect(RESERVATION_APP_URL);
+  // Restrict CRM to employees only: only user_role === 'employee' is allowed
+  // Missing/invalid user_role (hook not enabled) or 'client' → access denied
+  if (isProtectedRoute(request.nextUrl.pathname) && hasSession && userRole !== 'employee') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/access-denied';
+    return NextResponse.redirect(url);
   }
 
   // Redirect authenticated users away from auth pages
-  if (isAuthPage(request.nextUrl.pathname) && user) {
+  if (isAuthPage(request.nextUrl.pathname) && hasSession) {
+    const url = request.nextUrl.clone();
     if (userRole === 'employee') {
-      const url = request.nextUrl.clone();
       url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
+    } else {
+      url.pathname = '/access-denied';
     }
-    return NextResponse.redirect(RESERVATION_APP_URL);
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;

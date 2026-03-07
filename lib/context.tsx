@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import {
   CruiseEvent,
   Reservation,
@@ -13,6 +14,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+export type AppRole = 'client' | 'employee';
+
 function mapSupabaseUser(sbUser: SupabaseUser | null): User | null {
   if (!sbUser) return null;
   return {
@@ -20,6 +23,19 @@ function mapSupabaseUser(sbUser: SupabaseUser | null): User | null {
     email: sbUser.email ?? '',
     name: sbUser.user_metadata?.name ?? sbUser.email?.split('@')[0] ?? 'User',
   };
+}
+
+function getUserRoleFromToken(accessToken?: string): AppRole | null {
+  if (!accessToken) return null;
+  try {
+    const decoded = jwtDecode<{ user_role?: string }>(accessToken);
+    if (decoded?.user_role === 'employee' || decoded?.user_role === 'client') {
+      return decoded.user_role;
+    }
+  } catch {
+    // ignore decode errors
+  }
+  return null;
 }
 
 // DB row types
@@ -110,6 +126,7 @@ function mapInvoice(row: DbInvoice): Invoice {
 
 interface AppContextType {
   currentUser: User | null;
+  userRole: AppRole | null;
   authReady: boolean;
   events: CruiseEvent[];
   reservations: Reservation[];
@@ -133,6 +150,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [events, setEvents] = useState<CruiseEvent[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -177,11 +195,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInvoices((invoicesRes.data as DbInvoice[]).map(mapInvoice));
   }, []);
 
-  // Supabase auth: subscribe to changes (fires with INITIAL_SESSION on subscribe, restoring session from cookies)
+  // Supabase auth: subscribe to changes (mirrors palausport-reservation-ui AuthContext)
   useEffect(() => {
     const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(mapSupabaseUser(session?.user ?? null));
+      setUserRole(getUserRoleFromToken(session?.access_token) ?? null);
+      setAuthReady(true);
+    });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setCurrentUser(mapSupabaseUser(session?.user ?? null));
+      setUserRole(getUserRoleFromToken(session?.access_token) ?? null);
       setAuthReady(true);
     });
     return () => subscription.unsubscribe();
@@ -217,6 +241,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return { success: false, error: error.message };
     }
     setCurrentUser(mapSupabaseUser(data.user));
+    setUserRole(getUserRoleFromToken(data.session?.access_token) ?? null);
     return { success: true };
   };
 
@@ -232,6 +257,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     if (data.user) {
       setCurrentUser(mapSupabaseUser(data.user));
+      setUserRole(getUserRoleFromToken(data.session?.access_token) ?? null);
     }
     return { success: true };
   };
@@ -240,6 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     await supabase.auth.signOut();
     setCurrentUser(null);
+    setUserRole(null);
   };
 
   const addReservation = async (reservation: Omit<Reservation, 'id'> & { id?: string }): Promise<{ success: boolean; error?: string }> => {
@@ -354,6 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppContextType = {
     currentUser,
+    userRole,
     authReady,
     events,
     reservations,
