@@ -5,6 +5,7 @@ import {
     LayoutDashboard,
     CalendarDays,
     FileText,
+    MessageSquare,
     Settings,
     LogOut,
     ChevronUp,
@@ -44,6 +45,11 @@ const items = [
         title: 'Reservations',
         url: '/reservations',
         icon: CalendarDays,
+    },
+    {
+        title: 'Chat',
+        url: '/chat',
+        icon: MessageSquare,
     },
     {
         title: 'Invoice History',
