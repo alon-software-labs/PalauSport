@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppContext } from '@/lib/context';
 import { createClient } from '@/lib/supabase/client';
 import { Reservation, ReservationStatus } from '@/lib/types';
@@ -53,6 +53,15 @@ export default function ChatPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [lastMessages, setLastMessages] = useState<Record<string, LastMessage>>({});
   const [threadReads, setThreadReads] = useState<Record<string, string>>({});
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, selectedReservation]);
 
   const filteredReservations = useMemo(
     () =>
@@ -393,6 +402,7 @@ export default function ChatPage() {
                         </div>
                       ))
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
                 <div className="p-4 border-t flex gap-2 shrink-0 bg-background">
