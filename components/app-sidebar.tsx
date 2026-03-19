@@ -10,6 +10,7 @@ import {
     LogOut,
     ChevronUp,
     User2,
+    Users,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/lib/context';
@@ -45,6 +46,11 @@ const items = [
         title: 'Reservations',
         url: '/reservations',
         icon: CalendarDays,
+    },
+    {
+        title: 'Clients',
+        url: '/clients',
+        icon: Users,
     },
     {
         title: 'Chat',

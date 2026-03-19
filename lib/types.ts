@@ -62,3 +62,12 @@ export interface User {
   email: string;
   name: string;
 }
+
+export interface Client {
+  userId: string;
+  email: string;
+  name: string;
+  reservations: Reservation[];
+  totalSpent: number;
+  totalBookings: number;
+}
