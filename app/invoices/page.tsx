@@ -23,16 +23,17 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import { Download, Search } from 'lucide-react';
-import { downloadInvoicePDF } from '@/lib/pdf-generator';
+import { Download, Search, Ticket } from 'lucide-react';
+import { downloadInvoicePDF, downloadBoardingPassesPDF } from '@/lib/pdf-generator';
 
 type SortOption = 'date' | 'customer' | 'amount';
 
 export default function InvoicesPage() {
-  const { invoices, reservations } = useAppContext();
+  const { invoices, reservations, getEvent } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [isDownloadingPasses, setIsDownloadingPasses] = useState<string | null>(null);
 
   const filteredInvoices = useMemo(() => {
     let filtered = invoices;
@@ -74,6 +75,21 @@ export default function InvoicesPage() {
         downloadInvoicePDF(invoice, reservation);
       } finally {
         setIsDownloading(null);
+      }
+    }
+  };
+
+  const handleDownloadPasses = (invoiceId: string) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    const reservation = reservations.find(r => r.id === invoice?.reservationId);
+    const event = reservation ? getEvent(reservation.eventId) : undefined;
+
+    if (invoice && reservation) {
+      setIsDownloadingPasses(invoiceId);
+      try {
+        downloadBoardingPassesPDF(reservation, event);
+      } finally {
+        setIsDownloadingPasses(null);
       }
     }
   };
@@ -202,15 +218,28 @@ export default function InvoicesPage() {
                         {new Date(invoice.generatedAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDownload(invoice.id)}
-                          disabled={isDownloading === invoice.id}
-                        >
-                          <Download className="size-4 mr-1" />
-                          {isDownloading === invoice.id ? '...' : 'Download'}
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDownloadPasses(invoice.id)}
+                            disabled={isDownloadingPasses === invoice.id || isDownloading === invoice.id}
+                            title="Download Boarding Passes"
+                          >
+                            <Ticket className="size-4 mr-1" />
+                            {isDownloadingPasses === invoice.id ? '...' : 'Passes'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDownload(invoice.id)}
+                            disabled={isDownloading === invoice.id || isDownloadingPasses === invoice.id}
+                            title="Download Invoice PDF"
+                          >
+                            <Download className="size-4 mr-1" />
+                            {isDownloading === invoice.id ? '...' : 'Invoice'}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

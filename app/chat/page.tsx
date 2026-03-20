@@ -7,8 +7,6 @@ import { Reservation, ReservationStatus } from '@/lib/types';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, Loader2 } from 'lucide-react';
 import {
@@ -44,7 +42,7 @@ interface ThreadRead {
 const FILTER_STATUSES: ReservationStatus[] = ['PENDING', 'CONFIRMED', 'COMPLETED'];
 
 export default function ChatPage() {
-  const { reservations, currentUser, getEvent, updateReservation } = useAppContext();
+  const { reservations, currentUser, userRole, getEvent, updateReservation } = useAppContext();
   const [activeFilters, setActiveFilters] = useState<ReservationStatus[]>(['PENDING', 'CONFIRMED']);
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -84,6 +82,12 @@ export default function ChatPage() {
       return new Date(lastB).getTime() - new Date(lastA).getTime();
     });
   }, [filteredReservations, lastMessages]);
+
+  useEffect(() => {
+    if (!selectedReservation && sortedReservations.length > 0) {
+      setTimeout(() => setSelectedReservation(sortedReservations[0]), 0);
+    }
+  }, [sortedReservations, selectedReservation]);
 
   useEffect(() => {
     if (filteredReservations.length === 0 || !currentUser?.id) return;
@@ -199,7 +203,7 @@ export default function ChatPage() {
     const { error } = await supabase.from('chat_messages').insert({
       reservation_id: parseInt(selectedReservation.id, 10),
       sender_id: currentUser.id,
-      sender_role: 'employee',
+      sender_role: userRole || 'client',
       sender_name: currentUser.name || currentUser.email.split('@')[0],
       content: inputValue.trim(),
     });
@@ -338,45 +342,79 @@ export default function ChatPage() {
           <div className="flex flex-col h-full min-h-0 overflow-hidden">
             {selectedReservation ? (
               <>
-                <div className="p-4 border-b shrink-0 flex items-center justify-between">
+                <div className="p-4 border-b shrink-0 flex items-start justify-between bg-muted/10">
                   <div>
-                    <h2 className="font-semibold text-lg">{selectedReservation.customerName}</h2>
-                    <p className="text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-lg">{selectedReservation.customerName}</h2>
+                      <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-xs font-mono font-bold tracking-wider">
+                        REF: {selectedReservation.id.slice(0, 8).toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
                       {getEvent(selectedReservation.eventId)?.name} • Cabin{' '}
                       {selectedReservation.cabinId}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="text-right mr-2 hidden sm:block">
-                      <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</p>
-                      <p className="text-sm font-medium">{selectedReservation.status.replace('_', ' ')}</p>
-                    </div>
-                    <Select
-                      value={selectedReservation.status}
-                      onValueChange={(value) => handleStatusUpdate(value as ReservationStatus)}
-                      disabled={isUpdatingStatus}
-                    >
-                      <SelectTrigger className="w-[140px] h-9">
-                        {isUpdatingStatus ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <SelectValue placeholder="Change Status" />
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">Pending</SelectItem>
-                        <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                        <SelectItem value="COMPLETED">Completed</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {userRole === 'employee' ? (
+                      <>
+                        <div className="text-right mr-2 hidden sm:block">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</p>
+                          <p className="text-sm font-medium">{selectedReservation.status.replace('_', ' ')}</p>
+                        </div>
+                        <Select
+                          value={selectedReservation.status}
+                          onValueChange={(value) => handleStatusUpdate(value as ReservationStatus)}
+                          disabled={isUpdatingStatus}
+                        >
+                          <SelectTrigger className="w-[140px] h-9">
+                            {isUpdatingStatus ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <SelectValue placeholder="Change Status" />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PENDING">Pending</SelectItem>
+                            <SelectItem value="CONFIRMED">Confirmed</SelectItem>
+                            <SelectItem value="COMPLETED">Completed</SelectItem>
+                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </>
+                    ) : (
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Status</p>
+                        <p className="text-sm font-medium">{selectedReservation.status.replace('_', ' ')}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <ScrollArea className="flex-1 min-h-0 p-4 pt-8">
-                  <div className="space-y-4">
+                <ScrollArea className="flex-1 min-h-0 p-4 pt-6">
+                  <div className="space-y-4 pb-2">
+                    
+                    {/* Automatic Booking Context Message */}
+                    <div className="flex justify-center mb-8">
+                      <div className="bg-muted/50 border rounded-xl p-4 max-w-sm w-full shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 text-center">Booking Context</p>
+                        <div className="grid grid-cols-2 gap-y-2.5 text-sm">
+                          <div className="text-muted-foreground">Reference</div>
+                          <div className="font-mono font-medium">{selectedReservation.id.slice(0, 8).toUpperCase()}</div>
+                          <div className="text-muted-foreground">Destination</div>
+                          <div className="font-medium">{getEvent(selectedReservation.eventId)?.destination || 'Palau Route'}</div>
+                          <div className="text-muted-foreground">Departure</div>
+                          <div className="font-medium">{getEvent(selectedReservation.eventId) ? new Date(getEvent(selectedReservation.eventId)!.date).toLocaleDateString() : 'TBD'}</div>
+                          <div className="text-muted-foreground">Cabin</div>
+                          <div className="font-medium">{selectedReservation.cabinType.replace('_', ' ')} (Unit {selectedReservation.cabinId})</div>
+                          <div className="text-muted-foreground">Guests</div>
+                          <div className="font-medium">{selectedReservation.totalGuests} Pax / {selectedReservation.passengers?.length || 0} Listed</div>
+                        </div>
+                      </div>
+                    </div>
+
                     {messages.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
-                        No messages yet. Start the conversation.
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        You have no messages yet. Chat securely with support here.
                       </p>
                     ) : (
                       messages.map((m) => (
@@ -391,29 +429,28 @@ export default function ChatPage() {
                               : 'bg-muted'
                               }`}
                           >
-                            <p className="text-xs opacity-80">{m.sender_name}</p>
-                            <div className="flex flex-row items-baseline justify-between gap-4 mt-1.5">
-                              <p className="text-lg flex-1 min-w-0">{m.content}</p>
+                            <div className="flex flex-row items-baseline justify-between gap-4">
+                              <p className="text-base flex-1 min-w-0">{m.content}</p>
                               <span className="text-xs opacity-70 shrink-0 whitespace-nowrap">
-                                {new Date(m.created_at).toLocaleString()}
+                                {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                           </div>
                         </div>
                       ))
                     )}
-                    <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} className="h-1" />
                   </div>
                 </ScrollArea>
                 <div className="p-4 border-t flex gap-2 shrink-0 bg-background">
                   <Input
-                    placeholder="Type a message..."
+                    placeholder="Type your message here..."
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                   />
                   <Button onClick={handleSend} disabled={isSending || !inputValue.trim()}>
-                    Send
+                    {isSending ? <Loader2 className="size-4 animate-spin" /> : 'Send'}
                   </Button>
                 </div>
               </>

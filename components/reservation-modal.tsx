@@ -3,7 +3,7 @@
 import { Reservation } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { useAppContext } from '@/lib/context';
-import { downloadInvoicePDF } from '@/lib/pdf-generator';
+import { downloadInvoicePDF, downloadBoardingPassesPDF } from '@/lib/pdf-generator';
 import { useState } from 'react';
 
 import {
@@ -26,9 +26,12 @@ export function ReservationModal({
   onClose,
   onGenerateInvoice,
 }: ReservationModalProps) {
-  const { generateInvoice, getInvoicesByReservation } = useAppContext();
+  const { generateInvoice, getInvoicesByReservation, getEvent } = useAppContext();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDownloadingPasses, setIsDownloadingPasses] = useState(false);
+
+  const event = reservation ? getEvent(reservation.eventId) : undefined;
 
   const handleGenerateInvoice = async () => {
     if (!reservation) return;
@@ -53,6 +56,16 @@ export function ReservationModal({
       }
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadPasses = () => {
+    if (!reservation) return;
+    setIsDownloadingPasses(true);
+    try {
+      downloadBoardingPassesPDF(reservation, event);
+    } finally {
+      setIsDownloadingPasses(false);
     }
   };
 
@@ -146,9 +159,14 @@ export function ReservationModal({
                 : 'Generate Invoice'}
           </Button>
           {reservation?.invoiceGenerated && (
-            <Button onClick={handleDownloadInvoice} disabled={isDownloading} variant="outline">
-              {isDownloading ? 'Downloading...' : 'Download PDF'}
-            </Button>
+            <>
+              <Button onClick={handleDownloadInvoice} disabled={isDownloading} variant="outline">
+                {isDownloading ? 'Downloading...' : 'Download Invoice'}
+              </Button>
+              <Button onClick={handleDownloadPasses} disabled={isDownloadingPasses} variant="secondary">
+                {isDownloadingPasses ? 'Downloading...' : 'Download Passes'}
+              </Button>
+            </>
           )}
         </div>
       </DialogContent>
