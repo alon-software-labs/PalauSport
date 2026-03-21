@@ -191,7 +191,6 @@ export default function ReservationsPage() {
                     <TableHead>Customer</TableHead>
                     <TableHead>Guests</TableHead>
                     <TableHead>Cabin</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[100px]" />
                   </TableRow>
@@ -213,9 +212,6 @@ export default function ReservationsPage() {
                         {reservation.totalGuests}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{reservation.cabinType}</TableCell>
-                      <TableCell className="text-right font-mono font-medium tabular-nums">
-                        ${reservation.totalPrice.toFixed(2)}
-                      </TableCell>
                       <TableCell>
                         <Badge variant={reservation.invoiceGenerated ? 'default' : 'secondary'}>
                           {reservation.invoiceGenerated ? 'Invoice' : 'Pending'}

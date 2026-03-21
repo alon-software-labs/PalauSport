@@ -290,7 +290,7 @@ export default function ChatPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-medium truncate text-sm min-w-0">
-                              {r.customerName} • {event?.name ?? `Event #${r.eventId}`} • Cabin{' '}
+                              {r.customerName} • {event?.name} • Cabin{' '}
                               {r.cabinId}
                             </p>
                             <span
@@ -340,7 +340,7 @@ export default function ChatPage() {
               <>
                 <div className="p-4 border-b shrink-0 flex items-center justify-between">
                   <div>
-                    <h2 className="font-semibold text-lg">{selectedReservation.customerName}</h2>
+                    <h2 className="font-semibold text-lg">{selectedReservation.customerName} • {getEvent(selectedReservation.eventId)?.destination} </h2>
                     <p className="text-sm text-muted-foreground">
                       {getEvent(selectedReservation.eventId)?.name} • Cabin{' '}
                       {selectedReservation.cabinId}

@@ -26,7 +26,8 @@ export function ReservationModal({
   onClose,
   onGenerateInvoice,
 }: ReservationModalProps) {
-  const { generateInvoice, getInvoicesByReservation } = useAppContext();
+  const { generateInvoice, getInvoicesByReservation, getEvent } = useAppContext();
+  const event = reservation ? getEvent(reservation.eventId) : null;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -61,10 +62,10 @@ export function ReservationModal({
       <DialogContent className="max-w-2xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle className="text-xl font-semibold tracking-tight">
-            {reservation?.customerName}
+            {event ? `${event.destination} - ${event.name} | ${reservation?.cabinType?.replace('_', ' ')}` : 'Reservation Details'}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground font-mono text-xs">
-            {reservation?.id}
+            Reservation ID: {reservation?.id}
           </DialogDescription>
         </DialogHeader>
 
@@ -102,20 +103,42 @@ export function ReservationModal({
 
             <section className="animate-in fade-in slide-in-from-bottom-2 duration-700">
               <h3 className="text-xs font-semibold text-primary mb-4 uppercase tracking-wider">
-                Passengers
+                Guests
               </h3>
               <div className="space-y-3">
-                {reservation?.passengers.map((passenger: any) => (
-                  <div key={passenger.id} className="bg-muted/50 border border-border p-3 rounded-lg flex items-center justify-between">
-                    <div>
-                      <div className="font-medium">{passenger.name}</div>
-                      <div className="text-muted-foreground text-xs">Age: {passenger.age}</div>
-                    </div>
-                    {passenger.allergies && passenger.allergies !== 'None' && (
-                      <div className="bg-destructive/10 text-destructive px-2 py-1 rounded text-[10px] font-medium border border-destructive/20 uppercase tracking-tighter">
-                        Allergy: {passenger.allergies}
+                {reservation?.passengers.map((passenger: any, index: number) => (
+                  <div key={passenger.id} className="bg-muted/30 border border-border/60 p-4 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                      <div className="font-semibold text-sm text-foreground">{passenger.fullName}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-primary/70 bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">
+                        Guest {index + 1}
                       </div>
-                    )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Age</span>
+                        <div className="text-xs font-medium">{passenger.age || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Phone</span>
+                        <div className="text-xs font-medium">{passenger.phone || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Gender</span>
+                        <div className="text-xs font-medium capitalize">{passenger.gender || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Cabin Type</span>
+                        <div className="text-xs font-medium text-blue-600/80">{passenger.cabinType?.replace('_', ' ') || '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Allergies</span>
+                        <div className={`text-xs font-medium ${passenger.allergies && passenger.allergies !== 'None' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {passenger.allergies || 'None'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
