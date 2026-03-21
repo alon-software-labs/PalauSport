@@ -19,7 +19,9 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const { events, reservations, isLoading, error } = useAppContext();
 
-  const totalPassengers = reservations.reduce((sum, r) => sum + r.totalGuests, 0);
+  const totalPassengers = reservations
+    .filter(r => r.status === 'CONFIRMED')
+    .reduce((sum, r) => sum + r.totalGuests, 0);
   const totalCapacity = 22;
   const capacityPercentage = totalPassengers > 0 ? Math.round((totalPassengers / totalCapacity) * 100) : 0;
   const recentReservations = reservations.slice(-5).reverse();

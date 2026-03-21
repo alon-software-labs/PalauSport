@@ -33,13 +33,32 @@ type SortOption = 'name' | 'date' | 'price' | 'guests';
 
 export default function ReservationsPage() {
   const { events, reservations, getInvoicesByReservation } = useAppContext();
-  const [selectedEventId, setSelectedEventId] = useState(events[0]?.id || '');
+  
+  const destinations = useMemo(() => Array.from(new Set(events.map(e => e.destination).filter(Boolean))), [events]);
+  const [selectedDestination, setSelectedDestination] = useState<string>('');
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
 
   useEffect(() => {
-    if (events.length > 0 && !selectedEventId) {
-      setSelectedEventId(events[0].id);
+    if (events.length > 0) {
+      if (!selectedDestination && destinations.length > 0) {
+        setSelectedDestination(destinations[0]);
+      }
     }
-  }, [events, selectedEventId]);
+  }, [events, destinations, selectedDestination]);
+
+  const destinationEvents = useMemo(() => {
+    return events.filter(e => e.destination === selectedDestination);
+  }, [events, selectedDestination]);
+
+  useEffect(() => {
+    if (destinationEvents.length > 0) {
+      if (!selectedEventId || !destinationEvents.some(e => e.id === selectedEventId)) {
+        setSelectedEventId(destinationEvents[0].id);
+      }
+    } else {
+      setSelectedEventId('');
+    }
+  }, [destinationEvents, selectedEventId]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
@@ -108,18 +127,39 @@ export default function ReservationsPage() {
         <CardHeader>
           <CardTitle className="text-base">Select Event</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 flex-wrap">
-            {events.map(event => (
-              <Button
-                key={event.id}
-                onClick={() => setSelectedEventId(event.id)}
-                variant={selectedEventId === event.id ? 'default' : 'outline'}
-              >
-                {event.name} ({event.currentBookings}/{event.capacity})
-              </Button>
-            ))}
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label className="text-sm text-muted-foreground">Destination</Label>
+            <div className="flex gap-2 flex-wrap">
+              {destinations.map(dest => (
+                <Button
+                  key={dest}
+                  onClick={() => setSelectedDestination(dest)}
+                  variant={selectedDestination === dest ? 'default' : 'outline'}
+                >
+                  {dest}
+                </Button>
+              ))}
+            </div>
           </div>
+
+          {destinationEvents.length > 0 && (
+            <div className="max-w-xs space-y-2">
+              <Label className="text-sm text-muted-foreground">Date</Label>
+              <Select value={selectedEventId} onValueChange={setSelectedEventId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {destinationEvents.map(event => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.name} ({event.currentBookings}/{event.capacity})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
