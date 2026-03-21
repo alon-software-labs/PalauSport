@@ -7,6 +7,7 @@ import {
   Reservation,
   Invoice,
   User,
+  Client,
   CabinType,
   Passenger,
   ReservationStatus,
@@ -131,6 +132,7 @@ interface AppContextType {
   events: CruiseEvent[];
   reservations: Reservation[];
   invoices: Invoice[];
+  clients: Client[];
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -143,7 +145,15 @@ interface AppContextType {
   getInvoicesByReservation: (reservationId: string) => Invoice[];
   getEvent: (eventId: string) => CruiseEvent | undefined;
   getReservationsByEvent: (eventId: string) => Reservation[];
+  getTopClients: (n: number) => Client[];
   refetch: () => Promise<void>;
+  fetchClientsPaginated: (props: {
+    pageIndex: number;
+    pageSize: number;
+    sortBy: string;
+    sortDesc: boolean;
+    search: string;
+  }) => Promise<{ data: Client[]; count: number }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -155,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<CruiseEvent[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -162,10 +173,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     setError(null);
 
-    const [eventsRes, reservationsRes, invoicesRes] = await Promise.all([
+    const [eventsRes, reservationsRes, invoicesRes, userRolesRes] = await Promise.all([
       supabase.from('cruise_events').select('*').order('date', { ascending: true }),
       supabase.from('reservations').select('*').order('created_at', { ascending: false }),
       supabase.from('invoices').select('*').order('generated_at', { ascending: false }),
+      supabase.from('user_roles').select('user_id, role').eq('role', 'client'),
     ]);
 
     if (eventsRes.error) {
@@ -186,13 +198,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const mappedEvents = (eventsRes.data as DbCruiseEvent[]).map((row) => {
       const event = mapEvent(row);
       event.currentBookings = mappedReservations
-        .filter((r) => r.eventId === event.id)
+        .filter((r) => r.eventId === event.id && r.status === 'CONFIRMED')
         .reduce((sum, r) => sum + r.totalGuests, 0);
       return event;
     });
     setEvents(mappedEvents);
     setReservations(mappedReservations);
     setInvoices((invoicesRes.data as DbInvoice[]).map(mapInvoice));
+
+    // Build client list from user_roles + cross-reference reservation data
+    const clientRoles = (userRolesRes.data ?? []) as Array<{ user_id: string; role: string }>;
+
+    // For each client user_id, find a matching reservation to get their name/email
+    // We use a map keyed by user_id; if no reservations match we still include them
+    const mappedClients: Client[] = clientRoles.map((cr) => {
+      // Try to match via user_id stored in reservation metadata (not available)
+      // Fallback: use the first reservation whose email was registered by this user
+      // Since we can't directly map user_id -> email without admin, we create a
+      // placeholder that will be enriched if a reservation exists.
+      // For now we list all client role entries as stubs and fill in from reservations.
+      return {
+        userId: cr.user_id,
+        email: cr.user_id,   // placeholder — will be overwritten if we find matching reservation
+        name: 'Client',
+        reservations: [],
+        totalSpent: 0,
+        totalBookings: 0,
+      };
+    });
+
+    // Additionally, create client entries from unique reservation emails
+    // (this ensures every booker is represented even if their user_role entry exists)
+    const uniqueEmailClients = new Map<string, Client>();
+    mappedReservations.forEach((r) => {
+      const key = r.customerEmail.toLowerCase();
+      if (!uniqueEmailClients.has(key)) {
+        uniqueEmailClients.set(key, {
+          userId: key,  // use email as key when no user_id is available
+          email: r.customerEmail,
+          name: r.customerName,
+          reservations: [],
+          totalSpent: 0,
+          totalBookings: 0,
+        });
+      }
+      const client = uniqueEmailClients.get(key)!;
+      client.reservations.push(r);
+      client.totalSpent += r.totalPrice;
+      client.totalBookings += 1;
+    });
+
+    // Merge: enrich userId-based clients with email/name if possible, else use reservation-derived clients
+    const finalClients: Client[] = [];
+    const usedEmails = new Set<string>();
+
+    // For user_role clients, try to find their email from reservations
+    // (In a full solution this would use an admin API or a profiles table)
+    // For now, if we can match by any heuristic, great; otherwise include stub.
+    // Since we cannot map user_id -> email client-side, we rely on reservation-derived clients
+    // and supplement with any user_role client stubs not already covered.
+    uniqueEmailClients.forEach((client) => {
+      finalClients.push(client);
+      usedEmails.add(client.email.toLowerCase());
+    });
+
+    // Add unmatched client role stubs (users with no reservations yet)
+    mappedClients.forEach((stub) => {
+      // We cannot match without email; include as unknown-email client
+      // only if there is no existing client with same userId
+      const alreadyExists = finalClients.some((c) => c.userId === stub.userId);
+      if (!alreadyExists) {
+        finalClients.push(stub);
+      }
+    });
+
+    setClients(finalClients);
   }, []);
 
   // Supabase auth: subscribe to changes (mirrors palausport-reservation-ui AuthContext)
@@ -378,6 +458,77 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getEvent = (eventId: string) => events.find(e => e.id === eventId);
   const getReservationsByEvent = (eventId: string) => reservations.filter(r => r.eventId === eventId);
+  const getTopClients = (n: number): Client[] =>
+    [...clients]
+      .sort((a, b) => b.totalBookings - a.totalBookings || b.totalSpent - a.totalSpent)
+      .slice(0, n);
+
+  const fetchClientsPaginated = async ({
+    pageIndex,
+    pageSize,
+    sortBy,
+    sortDesc,
+    search,
+  }: {
+    pageIndex: number;
+    pageSize: number;
+    sortBy: string;
+    sortDesc: boolean;
+    search: string;
+  }): Promise<{ data: Client[]; count: number }> => {
+    const supabase = createClient();
+    let query = supabase
+      .from('client_stats')
+      .select('*', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`email.ilike.%${search}%,name.ilike.%${search}%`);
+    }
+
+    const dbSortBy = sortBy === 'totalSpent' ? 'total_spent' :
+                     sortBy === 'totalBookings' ? 'total_bookings' :
+                     sortBy;
+
+    if (dbSortBy) {
+      query = query.order(dbSortBy, { ascending: !sortDesc });
+    } else {
+      query = query.order('total_spent', { ascending: false });
+    }
+
+    const from = pageIndex * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) {
+      console.error(error);
+      return { data: [], count: 0 };
+    }
+
+    const mappedData: Client[] = (data || []).map((row: any) => ({
+      userId: row.email,
+      email: row.email,
+      name: row.name,
+      totalSpent: Number(row.total_spent) || 0,
+      totalBookings: Number(row.total_bookings) || 0,
+      reservations: (row.reservations || []).map((r: any) => ({
+        id: r.id,
+        eventId: r.eventId,
+        cabinId: r.cabinId,
+        cabinType: r.cabinType,
+        customerName: r.customerName,
+        customerEmail: row.email,
+        customerPhone: '',
+        passengers: [],
+        status: r.status,
+        totalGuests: r.totalGuests,
+        totalPrice: r.totalPrice,
+        createdAt: r.createdAt,
+      })),
+    }));
+
+    return { data: mappedData, count: count || 0 };
+  };
 
   const value: AppContextType = {
     currentUser,
@@ -386,6 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     events,
     reservations,
     invoices,
+    clients,
     isLoading,
     error,
     login,
@@ -398,7 +550,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getInvoicesByReservation,
     getEvent,
     getReservationsByEvent,
+    getTopClients,
     refetch: fetchData,
+    fetchClientsPaginated,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

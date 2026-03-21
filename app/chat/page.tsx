@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppContext } from '@/lib/context';
 import { createClient } from '@/lib/supabase/client';
 import { Reservation, ReservationStatus } from '@/lib/types';
+import { ReservationModal } from '@/components/reservation-modal';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ export default function ChatPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [lastMessages, setLastMessages] = useState<Record<string, LastMessage>>({});
   const [threadReads, setThreadReads] = useState<Record<string, string>>({});
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -294,7 +296,7 @@ export default function ChatPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-medium truncate text-sm min-w-0">
-                              {r.customerName} • {event?.name ?? `Event #${r.eventId}`} • Cabin{' '}
+                              {r.customerName} • {event?.name} • Cabin{' '}
                               {r.cabinId}
                             </p>
                             <span
@@ -343,17 +345,27 @@ export default function ChatPage() {
             {selectedReservation ? (
               <>
                 <div className="p-4 border-b shrink-0 flex items-start justify-between bg-muted/10">
-                  <div>
+                  <div className="flex items-center gap-4">
+                    <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="font-semibold text-lg">{selectedReservation.customerName}</h2>
+                        <h2 className="font-semibold text-lg">{selectedReservation.customerName} • {getEvent(selectedReservation.eventId)?.destination} </h2>
                       <span className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded text-xs font-mono font-bold tracking-wider">
                         REF: {selectedReservation.id.slice(0, 8).toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {getEvent(selectedReservation.eventId)?.name} • Cabin{' '}
-                      {selectedReservation.cabinId}
-                    </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {getEvent(selectedReservation.eventId)?.name} • Cabin{' '}
+                        {selectedReservation.cabinId}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px] uppercase font-bold tracking-wider shrink-0 cursor-pointer"
+                      onClick={() => setIsDetailsModalOpen(true)}
+                    >
+                      View Details
+                    </Button>
                   </div>
                   <div className="flex items-center gap-3">
                     {userRole === 'employee' ? (
@@ -463,6 +475,13 @@ export default function ChatPage() {
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      {selectedReservation && (
+        <ReservationModal
+          reservation={isDetailsModalOpen ? selectedReservation : null}
+          onClose={() => setIsDetailsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
