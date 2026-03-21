@@ -32,8 +32,6 @@ export function ReservationModal({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingPasses, setIsDownloadingPasses] = useState(false);
 
-  const event = reservation ? getEvent(reservation.eventId) : undefined;
-
   const handleGenerateInvoice = async () => {
     if (!reservation) return;
     setIsGenerating(true);
@@ -64,7 +62,7 @@ export function ReservationModal({
     if (!reservation) return;
     setIsDownloadingPasses(true);
     try {
-      downloadBoardingPassesPDF(reservation, event);
+      downloadBoardingPassesPDF(reservation, event ?? undefined);
     } finally {
       setIsDownloadingPasses(false);
     }
