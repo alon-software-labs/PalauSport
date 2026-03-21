@@ -134,8 +134,8 @@ export function ReservationModal({
                       </div>
                       <div className="space-y-1">
                         <span className="text-[10px] text-muted-foreground uppercase font-semibold tracking-tight">Allergies</span>
-                        <div className={`text-xs font-medium ${passenger.allergies && passenger.allergies !== 'None' ? 'text-destructive' : 'text-muted-foreground'}`}>
-                          {passenger.allergies || 'None'}
+                        <div className={`text-xs font-medium ${passenger.foodAllergies && passenger.foodAllergies !== 'None' ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {passenger.foodAllergies || 'None'}
                         </div>
                       </div>
                     </div>
