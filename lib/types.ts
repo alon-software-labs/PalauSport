@@ -4,8 +4,11 @@ export type CabinStatus = 'AVAILABLE' | 'BOOKED' | 'MAINTENANCE';
 
 export interface Passenger {
   id: string;
-  name: string;
-  age: number;
+  fullName: string;
+  // age: number;
+  // gender: string;
+  // phone?: string;
+  cabinType: CabinType;
   allergies?: string;
 }
 
