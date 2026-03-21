@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '@/lib/context';
 import { Client, Reservation } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -14,7 +15,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Trophy, TrendingUp, Users, DollarSign, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react';
+import { Search, Trophy, TrendingUp, Users, DollarSign, ChevronDown, ChevronRight, CalendarDays, ArrowUpDown, ArrowDown, ArrowUp } from 'lucide-react';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  SortingState,
+  PaginationState,
+} from '@tanstack/react-table';
 
 const MEDAL_COLORS = ['text-yellow-500', 'text-slate-400', 'text-amber-600', 'text-slate-500', 'text-slate-500'];
 const MEDAL_LABELS = ['🥇', '🥈', '🥉', '4th', '5th'];
@@ -48,10 +57,10 @@ function ClientRow({ client, rank }: { client: Client; rank: number }) {
   return (
     <>
       <TableRow
-        className="cursor-pointer hover:bg-muted/40 transition-colors"
+        className="cursor-pointer hover:bg-muted/40 transition-colors border-b"
         onClick={() => setExpanded(!expanded)}
       >
-        <TableCell>
+        <TableCell className="w-14">
           <div className="flex items-center gap-2">
             {expanded
               ? <ChevronDown className="size-4 text-muted-foreground" />
@@ -79,7 +88,7 @@ function ClientRow({ client, rank }: { client: Client; rank: number }) {
       </TableRow>
       {expanded && client.reservations.length > 0 && (
         <TableRow>
-          <TableCell colSpan={5} className="p-0 bg-muted/10">
+          <TableCell colSpan={5} className="p-0 bg-muted/10 border-b">
             <div className="px-6 py-4 space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Reservation History ({client.reservations.length})
@@ -93,7 +102,7 @@ function ClientRow({ client, rank }: { client: Client; rank: number }) {
       )}
       {expanded && client.reservations.length === 0 && (
         <TableRow>
-          <TableCell colSpan={5} className="bg-muted/10">
+          <TableCell colSpan={5} className="bg-muted/10 border-b">
             <p className="text-center text-sm text-muted-foreground py-4">No reservations yet.</p>
           </TableCell>
         </TableRow>
@@ -102,22 +111,114 @@ function ClientRow({ client, rank }: { client: Client; rank: number }) {
   );
 }
 
+const columnHelper = createColumnHelper<Client>();
+
 export default function ClientsPage() {
-  const { clients, getTopClients, isLoading } = useAppContext();
+  const { clients, getTopClients, fetchClientsPaginated } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
 
+  // React Table states
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const [tableData, setTableData] = useState<Client[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isTableLoading, setIsTableLoading] = useState(true);
+
+  // Overall stats derived from the full local memory cache of clients (until a dashboard API replaces this)
   const topClients = useMemo(() => getTopClients(5), [getTopClients]);
-
-  const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return clients;
-    const q = searchQuery.toLowerCase();
-    return clients.filter(
-      (c) => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
-    );
-  }, [clients, searchQuery]);
-
   const totalRevenue = useMemo(() => clients.reduce((sum, c) => sum + c.totalSpent, 0), [clients]);
   const totalBookings = useMemo(() => clients.reduce((sum, c) => sum + c.totalBookings, 0), [clients]);
+
+  useEffect(() => {
+    setPagination(p => ({ ...p, pageIndex: 0 }));
+  }, [searchQuery]);
+
+  useEffect(() => {
+    let active = true;
+    setIsTableLoading(true);
+
+    const sortObj = sorting[0];
+    const sortBy = sortObj ? sortObj.id : '';
+    const sortDesc = sortObj ? sortObj.desc : false;
+
+    fetchClientsPaginated({
+      pageIndex: pagination.pageIndex,
+      pageSize: pagination.pageSize,
+      sortBy,
+      sortDesc,
+      search: searchQuery
+    }).then(({ data, count }) => {
+      if (active) {
+        setTableData(data);
+        setTotalCount(count);
+        setIsTableLoading(false);
+      }
+    });
+
+    return () => { active = false; };
+  }, [pagination.pageIndex, pagination.pageSize, sorting, searchQuery, fetchClientsPaginated]);
+
+  const columns = useMemo(() => [
+    columnHelper.display({
+      id: 'expansion',
+      header: () => null,
+      cell: () => null,
+    }),
+    columnHelper.accessor('name', {
+      header: ({ column }) => {
+        return (
+          <Button variant="ghost" className="-ml-4 h-8" onClick={column.getToggleSortingHandler()}>
+            Client
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : column.getIsSorted() === 'asc' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowUpDown className="ml-2 h-4 w-4" />}
+          </Button>
+        )
+      },
+    }),
+    columnHelper.accessor('totalBookings', {
+      header: ({ column }) => {
+        return (
+          <Button variant="ghost" className="mx-auto h-8 flex" onClick={column.getToggleSortingHandler()}>
+            Bookings
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : column.getIsSorted() === 'asc' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowUpDown className="ml-2 h-4 w-4" />}
+          </Button>
+        )
+      },
+    }),
+    columnHelper.accessor('totalSpent', {
+      header: ({ column }) => {
+        return (
+          <Button variant="ghost" className="ml-auto h-8 flex" onClick={column.getToggleSortingHandler()}>
+            Total Spent
+            {column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 h-4 w-4" /> : column.getIsSorted() === 'asc' ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowUpDown className="ml-2 h-4 w-4" />}
+          </Button>
+        )
+      },
+    }),
+    columnHelper.display({
+      id: 'status',
+      header: () => 'Status',
+      cell: () => null,
+    }),
+  ], []);
+
+  const table = useReactTable({
+    data: tableData,
+    columns,
+    pageCount: Math.ceil(totalCount / pagination.pageSize),
+    state: {
+      pagination,
+      sorting
+    },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -224,7 +325,7 @@ export default function ClientsPage() {
         <CardHeader>
           <CardTitle className="text-base">All Clients</CardTitle>
           <CardDescription>
-            {filteredClients.length} client{filteredClients.length !== 1 ? 's' : ''} found
+            {totalCount} client{totalCount !== 1 ? 's' : ''} found
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -239,32 +340,73 @@ export default function ClientsPage() {
             />
           </div>
 
-          {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">Loading clients…</div>
-          ) : filteredClients.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">
-              {searchQuery ? 'No clients match your search.' : 'No clients registered yet.'}
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-14" />
-                    <TableHead>Client</TableHead>
-                    <TableHead className="text-center">Bookings</TableHead>
-                    <TableHead className="text-right">Total Spent</TableHead>
-                    <TableHead>Status</TableHead>
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id} className={header.column.id === 'totalBookings' ? 'text-center' : header.column.id === 'totalSpent' ? 'text-right' : ''}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      )
+                    })}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.map((client, idx) => (
-                    <ClientRow key={client.userId} client={client} rank={idx + 1} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isTableLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      Loading clients...
+                    </TableCell>
+                  </TableRow>
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <ClientRow key={row.original.userId} client={row.original} rank={row.index + 1 + pagination.pageIndex * pagination.pageSize} />
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-end space-x-2 py-4 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm flex items-center gap-1 mx-2">
+              <div>Page</div>
+              <strong>
+                {table.getState().pagination.pageIndex + 1} of{' '}
+                {table.getPageCount() || 1}
+              </strong>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

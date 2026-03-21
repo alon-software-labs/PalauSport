@@ -147,6 +147,13 @@ interface AppContextType {
   getReservationsByEvent: (eventId: string) => Reservation[];
   getTopClients: (n: number) => Client[];
   refetch: () => Promise<void>;
+  fetchClientsPaginated: (props: {
+    pageIndex: number;
+    pageSize: number;
+    sortBy: string;
+    sortDesc: boolean;
+    search: string;
+  }) => Promise<{ data: Client[]; count: number }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -456,6 +463,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => b.totalBookings - a.totalBookings || b.totalSpent - a.totalSpent)
       .slice(0, n);
 
+  const fetchClientsPaginated = async ({
+    pageIndex,
+    pageSize,
+    sortBy,
+    sortDesc,
+    search,
+  }: {
+    pageIndex: number;
+    pageSize: number;
+    sortBy: string;
+    sortDesc: boolean;
+    search: string;
+  }): Promise<{ data: Client[]; count: number }> => {
+    const supabase = createClient();
+    let query = supabase
+      .from('client_stats')
+      .select('*', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`email.ilike.%${search}%,name.ilike.%${search}%`);
+    }
+
+    const dbSortBy = sortBy === 'totalSpent' ? 'total_spent' :
+                     sortBy === 'totalBookings' ? 'total_bookings' :
+                     sortBy;
+
+    if (dbSortBy) {
+      query = query.order(dbSortBy, { ascending: !sortDesc });
+    } else {
+      query = query.order('total_spent', { ascending: false });
+    }
+
+    const from = pageIndex * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data, count, error } = await query;
+    if (error) {
+      console.error(error);
+      return { data: [], count: 0 };
+    }
+
+    const mappedData: Client[] = (data || []).map((row: any) => ({
+      userId: row.email,
+      email: row.email,
+      name: row.name,
+      totalSpent: Number(row.total_spent) || 0,
+      totalBookings: Number(row.total_bookings) || 0,
+      reservations: (row.reservations || []).map((r: any) => ({
+        id: r.id,
+        eventId: r.eventId,
+        cabinId: r.cabinId,
+        cabinType: r.cabinType,
+        customerName: r.customerName,
+        customerEmail: row.email,
+        customerPhone: '',
+        passengers: [],
+        status: r.status,
+        totalGuests: r.totalGuests,
+        totalPrice: r.totalPrice,
+        createdAt: r.createdAt,
+      })),
+    }));
+
+    return { data: mappedData, count: count || 0 };
+  };
+
   const value: AppContextType = {
     currentUser,
     userRole,
@@ -478,6 +552,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getReservationsByEvent,
     getTopClients,
     refetch: fetchData,
+    fetchClientsPaginated,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
